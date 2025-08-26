@@ -16,14 +16,14 @@ contact_behaviors = {
     "Mammi": "polite and respectful"
 }
 
-# 🚀 Setup headless Chrome options
+# 🚀 Headless Chromium options
 options = webdriver.ChromeOptions()
 options.add_argument("--headless")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 options.add_argument("--disable-gpu")
 options.add_argument("--window-size=1920,1080")
-options.add_experimental_option("excludeSwitches", ["enable-logging"])  # suppress warnings
+options.binary_location = "/usr/bin/chromium-browser"  # Use installed Chromium
 
 # 🚀 Start Chrome & WhatsApp Web
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
@@ -35,7 +35,7 @@ print("🤖 Bot started...")
 
 def get_ai_reply(message, contact_name):
     """Send message to SambaNova API and return reply"""
-    behavior = contact_behaviors.get(contact_name, "friendly and helpful")  # default
+    behavior = contact_behaviors.get(contact_name, "friendly and helpful")
     system_prompt = f"You are a WhatsApp assistant. Reply in a {behavior} style."
 
     headers = {
@@ -60,7 +60,7 @@ def get_ai_reply(message, contact_name):
         print("⚠️ Error calling SambaNova:", e)
         return "[AI Disabled] Message received."
 
-last_replied = {}  # store last replied message per contact
+last_replied = {}
 
 while True:
     try:
@@ -78,7 +78,6 @@ while True:
         mode = ""
 
         if unread_chats:
-            # ✅ Click parent chat row
             target_chat = unread_chats[0].find_element(By.XPATH, "./ancestor::div[@role='gridcell']")
             mode = "unread"
         elif all_chats:
@@ -91,35 +90,29 @@ while True:
             target_chat.click()
             time.sleep(2)
 
-            # Get contact name
             contact_name = driver.find_element(By.XPATH, '//header//span[@title]').text
 
-            # Get last incoming message
             messages = driver.find_elements(By.XPATH, '//div[contains(@class,"message-in")]//span[@dir="ltr"]')
             if messages:
                 last_msg = messages[-1].text
 
-                # Prevent duplicate replies per contact
                 if last_replied.get(contact_name) != last_msg:
                     print(f"📩 ({mode}) {contact_name}:", last_msg)
 
                     reply = get_ai_reply(last_msg, contact_name)
                     print("💬 Replying:", reply)
 
-                    # Chat box (editable input area)
                     chat_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')
                     chat_box.send_keys(reply)
 
-                    # Send button
                     send_btn = driver.find_element(By.XPATH, '//button[@aria-label="Send"]')
                     send_btn.click()
 
-                    # Save last replied message
                     last_replied[contact_name] = last_msg
                 else:
-                    print("⏩ Skipped (already replied to this message)")
+                    print("⏩ Skipped (already replied)")
 
-        time.sleep(10)  # check every 10 seconds
+        time.sleep(10)
     except Exception as e:
         print("⚠️ Error:", e)
         time.sleep(5)
